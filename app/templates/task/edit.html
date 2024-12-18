@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier la Tâche{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h2>Modifier la Tâche</h2>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Titre</label>
+                        <input type="text" class="form-control" id="title" name="title" value="{{ task.title }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ task.description }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="due_date" class="form-label">Date d'échéance</label>
+                        <input type="datetime-local" class="form-control" id="due_date" name="due_date" 
+                               value="{{ task.due_date.strftime('%Y-%m-%dT%H:%M') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="priority" class="form-label">Priorité</label>
+                        <select class="form-control" id="priority" name="priority">
+                            <option value="Basse" {% if task.priority == 'Basse' %}selected{% endif %}>Basse</option>
+                            <option value="Moyenne" {% if task.priority == 'Moyenne' %}selected{% endif %}>Moyenne</option>
+                            <option value="Haute" {% if task.priority == 'Haute' %}selected{% endif %}>Haute</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Catégorie</label>
+                        <select class="form-control" id="category" name="category">
+                            <option value="Personnel" {% if task.category == 'Personnel' %}selected{% endif %}>Personnel</option>
+                            <option value="Professionnel" {% if task.category == 'Professionnel' %}selected{% endif %}>Professionnel</option>
+                            <option value="Études" {% if task.category == 'Études' %}selected{% endif %}>Études</option>
+                            <option value="Autre" {% if task.category == 'Autre' %}selected{% endif %}>Autre</option>
+                        </select>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Mettre à jour</button>
+                        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Annuler</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

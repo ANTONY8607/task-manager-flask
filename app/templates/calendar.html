@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Calendrier{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Calendrier</h1>
+    </div>
+    <div class="col text-end">
+        <div class="btn-group">
+            <button class="btn btn-outline-primary" id="viewYear">Vue Annuelle</button>
+            <button class="btn btn-outline-primary" id="viewMonth">Vue Mensuelle</button>
+            <button class="btn btn-outline-primary" id="viewWeek">Vue Hebdomadaire</button>
+        </div>
+        <a href="{{ url_for('main.new_task') }}" class="btn btn-primary ms-2">
+            <i class="fas fa-plus"></i> Nouvelle Tâche
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<!-- Vue annuelle -->
+<div class="modal fade" id="yearViewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Vue Annuelle <span id="yearTitle"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="year-calendar">
+                    <div class="row" id="yearCalendar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour les détails de la tâche -->
+<div class="modal fade" id="taskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détails de la tâche</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h4 id="taskTitle"></h4>
+                <p id="taskDescription"></p>
+                <div class="task-details">
+                    <p><strong>Date d'échéance:</strong> <span id="taskDate"></span></p>
+                    <p><strong>Priorité:</strong> <span id="taskPriority"></span></p>
+                    <p><strong>Catégorie:</strong> <span id="taskCategory"></span></p>
+                    <p><strong>Statut:</strong> <span id="taskStatus"></span></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="#" id="editTaskLink" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Modifier
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+<style>
+    #calendar {
+        margin: 20px 0;
+        height: 800px;
+    }
+    
+    /* Style des événements */
+    .fc-event {
+        margin: 2px 0;
+        padding: 2px 4px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 0.9em;
+    }
+    
+    .task-event {
+        border-left: 3px solid;
+    }
+    
+    .task-event.completed {
+        opacity: 0.7;
+        text-decoration: line-through;
+    }
+    
+    /* Vue annuelle */
+    .year-calendar {
+        padding: 20px;
+    }
+    
+    .month-container {
+        padding: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .month-title {
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 10px;
+        color: #495057;
+    }
+    
+    .month-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+    }
+    
+    .month-day {
+        aspect-ratio: 1;
+        padding: 2px;
+        border: 1px solid #dee2e6;
+        text-align: center;
+        font-size: 0.8em;
+    }
+    
+    .month-day.has-tasks {
+        background-color: #e9ecef;
+        cursor: pointer;
+    }
+    
+    .month-day.today {
+        background-color: #cfe2ff;
+        font-weight: bold;
+    }
+    
+    .month-day.weekend {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const taskModal = new bootstrap.Modal(document.getElementById('taskModal'));
+    const yearViewModal = new bootstrap.Modal(document.getElementById('yearViewModal'));
+    let calendar;
+    
+    // Initialiser les événements depuis le backend
+    const events = {{ events|tojson|safe }};
+    
+    // Fonction pour générer le calendrier annuel
+    function generateYearCalendar(year) {
+        const months = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                       'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        const yearCalendar = document.getElementById('yearCalendar');
+        yearCalendar.innerHTML = '';
+        document.getElementById('yearTitle').textContent = year;
+
+        months.forEach((month, monthIndex) => {
+            const monthContainer = document.createElement('div');
+            monthContainer.className = 'col-md-3 month-container';
+            
+            const monthTitle = document.createElement('div');
+            monthTitle.className = 'month-title';
+            monthTitle.textContent = month;
+            
+            const monthGrid = document.createElement('div');
+            monthGrid.className = 'month-grid';
+            
+            // Ajouter les en-têtes des jours
+            ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'].forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'month-day header';
+                dayHeader.textContent = day;
+                monthGrid.appendChild(dayHeader);
+            });
+            
+            // Calculer les jours du mois
+            const firstDay = new Date(year, monthIndex, 1);
+            const lastDay = new Date(year, monthIndex + 1, 0);
+            const firstDayOfWeek = (firstDay.getDay() + 6) % 7; // Lundi = 0
+            
+            // Ajouter les jours vides avant le premier jour
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'month-day empty';
+                monthGrid.appendChild(emptyDay);
+            }
+            
+            // Ajouter les jours du mois
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const dayEl = document.createElement('div');
+                const currentDate = new Date(year, monthIndex, day);
+                const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+                const isToday = currentDate.toDateString() === new Date().toDateString();
+                
+                dayEl.className = `month-day${isWeekend ? ' weekend' : ''}${isToday ? ' today' : ''}`;
+                dayEl.textContent = day;
+                
+                // Vérifier si il y a des tâches ce jour-là
+                const hasEvents = events.some(event => {
+                    const eventDate = new Date(event.start);
+                    return eventDate.getDate() === day && 
+                           eventDate.getMonth() === monthIndex && 
+                           eventDate.getFullYear() === year;
+                });
+                
+                if (hasEvents) {
+                    dayEl.classList.add('has-tasks');
+                    dayEl.addEventListener('click', () => {
+                        calendar.gotoDate(currentDate);
+                        yearViewModal.hide();
+                    });
+                }
+                
+                monthGrid.appendChild(dayEl);
+            }
+            
+            monthContainer.appendChild(monthTitle);
+            monthContainer.appendChild(monthGrid);
+            yearCalendar.appendChild(monthContainer);
+        });
+    }
+
+    // Initialiser le calendrier principal
+    calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,dayGridWeek'
+        },
+        locale: 'fr',
+        firstDay: 1,
+        weekNumbers: true,
+        dayMaxEvents: true,
+        events: events,
+        eventClick: function(info) {
+            document.getElementById('taskTitle').textContent = info.event.title;
+            document.getElementById('taskDescription').textContent = info.event.extendedProps.description || 'Aucune description';
+            document.getElementById('taskDate').textContent = new Date(info.event.start).toLocaleString('fr-FR');
+            document.getElementById('taskPriority').textContent = info.event.extendedProps.priority || 'Non définie';
+            document.getElementById('taskCategory').textContent = info.event.extendedProps.category || 'Non catégorisée';
+            document.getElementById('taskStatus').textContent = info.event.extendedProps.completed ? 'Terminée' : 'En cours';
+            document.getElementById('editTaskLink').href = `/task/${info.event.id}/edit`;
+            taskModal.show();
+        }
+    });
+    
+    calendar.render();
+
+    // Gestionnaires d'événements pour les boutons de vue
+    document.getElementById('viewYear').addEventListener('click', function() {
+        const currentDate = calendar.getDate();
+        generateYearCalendar(currentDate.getFullYear());
+        yearViewModal.show();
+    });
+
+    document.getElementById('viewMonth').addEventListener('click', function() {
+        calendar.changeView('dayGridMonth');
+    });
+
+    document.getElementById('viewWeek').addEventListener('click', function() {
+        calendar.changeView('dayGridWeek');
+    });
+});</script>
+{% endblock %}
