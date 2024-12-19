@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_apscheduler import APScheduler
+from flask_talisman import Talisman
 from config import Config
 import redis
 from celery import Celery
@@ -32,6 +33,17 @@ def create_app(config_class=Config):
     # Configuration de Celery
     celery.conf.update(app.config)
     
+    # Configuration de la sécurité
+    Talisman(app, content_security_policy={
+        'default-src': "'self'",
+        'img-src': "'self' data:",
+        'script-src': "'self' 'unsafe-inline'",
+        'style-src': "'self' 'unsafe-inline'"
+    })
+    
+    login_manager.login_message = 'Veuillez vous connecter pour accéder à cette page.'
+    login_manager.session_protection = "strong"
+
     # Enregistrement des blueprints
     from app.auth import auth as auth_blueprint
     app.register_blueprint(auth_blueprint)
